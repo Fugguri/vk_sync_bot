@@ -1,8 +1,6 @@
-args = `arg="$(filter-out $@,$(MAKECMDGOALS))" && echo $${arg:-${1}}`
-
 update:
 	git add .
-	git commit -m $(call args,update)
+	git commit -m "update"
 	git push
 
 push:
