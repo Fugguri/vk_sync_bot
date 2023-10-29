@@ -1,0 +1,10 @@
+**/__pycache__
+__pycache__
+config.json
+sessions/*
+mailing/*
+media/*
+*.db
+Dockerfile
+docker-compose.yml
+accets.json
