@@ -15,3 +15,6 @@ init-repo:
 	git branch -M main
 	git remote add origin https://github.com/Fugguri/vk_sync_bot.git
 	git push -u origin main
+
+build:
+	docker-compose up --build -d
