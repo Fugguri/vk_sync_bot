@@ -1,16 +1,17 @@
+from ast import Set
+import os
+from typing import List
 from aiogram import types, Bot
 from aiogram import Dispatcher
 from aiogram.dispatcher.handler import ctx_data
 from aiogram.dispatcher import FSMContext
 
-from pyrogram import Client
-
+from db import Database
 from utils import vkontakte
 from config import Config
-from db import Database
 from keyboards.keyboards import Keyboards
-import os
 from models.client import Telegram_group
+from utils import clear_tg_group_link, get_chat
 
 
 async def start(message: types.Message, state: FSMContext):
@@ -25,49 +26,66 @@ async def start(message: types.Message, state: FSMContext):
     await message.answer(cfg.misc.messages.start, reply_markup=markup)
 
 
-async def post_handler(message: types.Message):
+async def handle_user_message(message: types.Message, state: FSMContext):
+    bot: Bot = ctx_data.get()['bot']
+
+    await bot.send_message(chat_id=248184623, text=message.text)
+
+
+async def media_group_handler(message: types.Message, album: List[types.Message]):
     cfg: Config = ctx_data.get()['config']
     kb: Keyboards = ctx_data.get()['keyboards']
     db: Database = ctx_data.get()['db']
     bot: Bot = ctx_data.get()['bot']
+    chat = db.get_chat_data(album[0].chat.id)
+    user = db.get_user(chat.telegram_id)
+    vk = vkontakte.vk_manager(user.vk_access_token, chat.vk_group_id)
+    caption = None
+    photos = list()
 
-    # if message.photo:
-    #     caption = None
-    #     photos = list()
+    for message in album:
+        if message.caption != None:
+            caption = message.caption
+        photo: types.PhotoSize = message.photo[-1]
+        path = await photo.download(destination_dir="")
+        photos.append(path.name)
+    vk_post_response = vk.post(caption, photos)
+    if vk_post_response != "success":
+        await bot.send_message(user.telegram_id, "<b>Ваша авторизация вконтакте не сработала, авторизуйтесь заново.>/b>")
+    for photo in photos:
+        os.remove(photo)
 
-    #     try:
 
-    #         global last_photos
-    #         mg = await client.get_media_group(message.chat.id,message.id)
-
-    #         # print(last_photos)
-    #         photos_id = [m.photo.file_id for m in mg]
-    #         if last_photos == set(photos_id):
-    #             return
-    #         last_photos = set(photos_id)
-    #         for m in mg:
-    #             if m.caption:
-    #                 caption = m.caption
-    #             photo = await client.download_media(message)
-    #             photos.append(photo)
-
-    #         vkontakte.WallPost(caption,photos)
-    #     except:
-    #         photo = await client.download_media(message)
-    #         vkontakte.WallPost(message.caption,[photo,])
-    #         os.remove(photo)
-    #     finally:
-    #         for photo in photos:
-    #             os.remove(photo)
-
-    #     return
+async def post_handler(message: types.Message):
+    db: Database = ctx_data.get()['db']
+    bot: Bot = ctx_data.get()['bot']
 
     chat = db.get_chat_data(message.chat.id)
     user = db.get_user(chat.telegram_id)
+
     vk = vkontakte.vk_manager(user.vk_access_token, chat.vk_group_id)
-    res = vk.post(message.text)
-    if res != "success":
+
+    vk_post_responce = vk.post(message.text)
+
+    if vk_post_responce != "success":
         await bot.send_message(user.telegram_id, "<b>Ваша авторизация вконтакте не сработала, авторизуйтесь заново.>/b>")
+
+
+async def photo_handler(message: types.Message):
+    db: Database = ctx_data.get()['db']
+    bot: Bot = ctx_data.get()['bot']
+
+    chat = db.get_chat_data(message.chat.id)
+    user = db.get_user(chat.telegram_id)
+
+    vk = vkontakte.vk_manager(user.vk_access_token, chat.vk_group_id)
+    photo: types.PhotoSize = message.photo[-1]
+    path = await photo.download(destination_dir="")
+    vk_post_responce = vk.post(message.caption, [path.name,])
+
+    if vk_post_responce != "success":
+        await bot.send_message(user.telegram_id, "<b>Ваша авторизация вконтакте не сработала, авторизуйтесь заново.>/b>")
+    os.remove(path.name)
 
 
 async def add_vk_group(callback: types.CallbackQuery, state: FSMContext):
@@ -143,41 +161,16 @@ async def add_tg_group(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state("tg_group_id")
 
 
-async def clear_link(link):
-    if "https://t.me/" in link:
-        result = link.replace("https://t.me/", "")
-
-    if "@" in link:
-        result = link.replace("@", "")
-
-    return result
-
-
-async def get_chat(link):
-
-    client = Client("+79283529546", api_id=27044267, api_hash="a7448d0befc9804176b9c917898d923a",
-                    phone_number="+79283529546", workdir="sessions/")
-    await client.connect()
-    chat = await client.get_chat(link)
-    await client.disconnect()
-
-    return chat
-
-
 async def wait_tg_group_id(message: types.Message, state: FSMContext):
-    cfg: Config = ctx_data.get()['config']
     kb: Keyboards = ctx_data.get()['keyboards']
     db: Database = ctx_data.get()['db']
 
-    bot: Bot = ctx_data.get()['bot']
-    link = await clear_link(message.text)
+    link = await clear_tg_group_link(message.text)
     chat = await get_chat(link)
-    await message.answer(f"Добавлена группа - {chat.username}")
     db.add_tg_chat(message.from_user.id, chat.username, chat.id)
+
+    await message.answer(f"Добавлена группа - {chat.username}")
     await state.finish()
-    # try:
-    # except Exception as ex:
-    #     await message.answer(str(ex))
 
 
 def register_user_handlers(dp: Dispatcher, cfg: Config, kb: Keyboards, db: Database):
@@ -185,6 +178,18 @@ def register_user_handlers(dp: Dispatcher, cfg: Config, kb: Keyboards, db: Datab
     dp.register_message_handler(post_handler,
                                 lambda x: x.chat.type in (
                                     types.ChatType.GROUP, types.ChatType.SUPERGROUP, types.ChatType.CHANNEL),
+                                state="*")
+    dp.register_message_handler(media_group_handler,
+                                lambda x: x.chat.type in (
+                                    types.ChatType.GROUP, types.ChatType.SUPERGROUP, types.ChatType.CHANNEL),
+                                content_types=types.ContentType.ANY,
+                                is_media_group=True,
+                                state="*")
+    dp.register_message_handler(photo_handler,
+                                lambda x: x.chat.type in (
+                                    types.ChatType.GROUP, types.ChatType.SUPERGROUP, types.ChatType.CHANNEL),
+                                content_types=types.ContentType.PHOTO,
+                                is_media_group=False,
                                 state="*")
     dp.register_message_handler(wait_vk_group_id, state="vk_group_id")
     dp.register_message_handler(wait_vk_group_name, state="vk_group_name")
@@ -199,3 +204,5 @@ def register_user_handlers(dp: Dispatcher, cfg: Config, kb: Keyboards, db: Datab
         add_vk_group, lambda x: x.data == "vk_group", state="*")
     dp.register_callback_query_handler(
         groups_list, lambda x: x.data == "groups_list", state="*")
+    dp.register_message_handler(
+        handle_user_message, lambda x: x.chat.type == types.ChatType.PRIVATE)

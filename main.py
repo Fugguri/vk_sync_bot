@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import openai
 import sys
 from db.sqlite_connection import Database
 from config import load_config
@@ -8,17 +7,19 @@ from keyboards.keyboards import Keyboards
 from handlers.users import register_user_handlers
 from handlers.admin import register_admin_handlers
 
-from middlewares.environment import EnvironmentMiddleware
-from aiogram import Bot, Dispatcher, executor, utils
+from middlewares import AlbumHandler, environment
+from aiogram import Bot, Dispatcher, utils
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.contrib.middlewares.logging import LoggingMiddleware
+
+
 logger = logging.getLogger(__name__)
 
 
 async def register_all_middlewares(dp, config, keyboards, db, bot):
 
-    dp.middleware.setup(EnvironmentMiddleware(
+    dp.middleware.setup(environment.EnvironmentMiddleware(
         config=config, db=db, keyboards=keyboards, bot=bot, ))
+    dp.middleware.setup(AlbumHandler.AlbumMiddleware())
 
 
 def register_all_handlers(dp, config, keyboards, db, ):
@@ -43,15 +44,11 @@ async def main():
     dp = Dispatcher(bot, storage=storage)
     kbs = Keyboards(config)
 
-    # openai.api_key = config.tg_bot.openai
-
-    db.cbdt()
     bot['keyboards'] = kbs
     bot['config'] = config
     await register_all_middlewares(dp, config, kbs, db, bot)
     register_all_handlers(dp, config, kbs, db)
 
-    # start
     dp.skip_updates = False
     try:
         await dp.start_polling()
@@ -62,7 +59,14 @@ async def main():
         await session.close()
 
 if __name__ == '__main__':
+    # from backend import app
+    # import uvicorn
+    # from threading import Thread
     try:
+        # backend = Thread(target=uvicorn.run, kwargs={
+        #     "app": app, "host": '0.0.0.0', "port": 8000})
+        # backend.start()
+
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.error("Bot stopped!")

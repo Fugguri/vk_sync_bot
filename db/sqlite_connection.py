@@ -7,6 +7,7 @@ class Database:
 
         self.connection = sqlite3.connect(db_file)
         self.cursor = self.connection.cursor()
+        self.cbdt()
 
     def cbdt(self):
         with self.connection:

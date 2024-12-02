@@ -6,7 +6,7 @@ class vk_manager(object):
 
     def __init__(self, access_token, group_id):
         self.v = "5.131"
-        self.group_id = -int(group_id)
+        self.group_id = group_id
         self.access_token = access_token
 
     def post(self, Message: str, PhotoPaths: list = None):
@@ -21,7 +21,7 @@ class vk_manager(object):
                     upload_url, files={'photo': open(Path, "rb")})
                 photo_id = requests.get('https://api.vk.com/method/photos.saveWallPhoto',
                                         params={'access_token': self.access_token,
-                                                'group_id': self.group_id,
+                                                'group_id': int(self.group_id),
                                                 'photo': request.json()["photo"],
                                                 'server': request.json()['server'],
                                                 'hash': request.json()['hash'],
@@ -36,17 +36,18 @@ class vk_manager(object):
 
         if PhotoPaths:
             params = {'access_token': self.access_token,
-                      'owner_id': -self.group_id,
+                      'owner_id': -int(self.group_id),
                       'from_group': 1,
                       'message': Message,
                       'attachments': PhotoLink,
                       'v': self.v}
         else:
             params = {'access_token': self.access_token,
-                      'owner_id': self.group_id,
+                      'owner_id': -int(self.group_id),
                       'from_group': 1,
                       'message': Message,
                       'v': self.v}
 
         res = requests.get('https://api.vk.com/method/wall.post', params)
+        print(res.text)
         return res.__dict__.get("error", "success")

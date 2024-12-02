@@ -1,6 +1,6 @@
 from config import Config
 from aiogram.utils.callback_data import CallbackData
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup,\
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, \
     ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton
 
 from models import client
@@ -17,7 +17,7 @@ class Keyboards:
 
     async def start_kb(self, user_id=None):
 
-        autorization_url = f"https://oauth.vk.com/authorize?client_id={self.cfg.tg_bot.client_id}&display=page&redirect_uri={self.cfg.tg_bot.redirect_uri}&scope=wall,groups,photos,offline&response_type=code&v=5.131&state={user_id}"
+        autorization_url = f"https://api.vk.com/oauth/authorize?client_id={self.cfg.tg_bot.client_id}&redirect_uri={self.cfg.tg_bot.redirect_uri}&scope=wall,groups,video,photos,offline&response_type=code&state={user_id}"
         kb = InlineKeyboardMarkup(row_width=3)
         kb.add(InlineKeyboardButton(text="Авторизоваться", url=autorization_url))
         kb.add(InlineKeyboardButton(
