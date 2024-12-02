@@ -4,11 +4,12 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 
+COPY ./requirements.txt ./
 
-COPY . .
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r ./requirements.txt
+
 WORKDIR .
-EXPOSE 8000
-
-RUN pip install -r requirements.txt
+COPY ./ ./
 
 CMD ["python3","main.py" ]  
