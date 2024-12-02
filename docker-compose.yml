@@ -1,0 +1,5 @@
+services:
+  myservice:
+    container_name: vk_sync_bot
+    build:
+      dockerfile: Dockerfile

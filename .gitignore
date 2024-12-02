@@ -5,6 +5,4 @@ sessions/*
 mailing/*
 media/*
 *.db
-Dockerfile
-docker-compose.yml
 accets.json
